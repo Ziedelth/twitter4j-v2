@@ -11,7 +11,7 @@ fun main() {
 
     val twitter = TwitterFactory(conf).instance
 
-    twitter.v2.uploadMedia(File("test-upload.jpg")).let {
+    twitter.v2.uploadMedia(MediaCategory.TWEET_IMAGE, File("test-upload.jpg")).let {
         twitter.v2.createTweet(
             mediaIds = arrayOf(it.mediaId),
             text = "Hello, World! From X API v2!"

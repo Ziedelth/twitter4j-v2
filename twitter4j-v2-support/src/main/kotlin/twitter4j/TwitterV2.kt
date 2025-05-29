@@ -915,7 +915,7 @@ interface TwitterV2 {
     ): BooleanResponse
 
     @Throws(TwitterException::class)
-    fun uploadMediaChunkedInit(size: Long, mediaType: String): LongResponse
+    fun uploadMediaChunkedInit(mediaCategory: MediaCategory, mediaType: MediaType, size: Long): LongResponse
 
     @Throws(TwitterException::class)
     fun uploadMediaChunkedAppend(mediaId: Long, segmentIndex: Long, fileName: String, media: InputStream)
@@ -924,9 +924,22 @@ interface TwitterV2 {
     fun uploadMediaChunkedFinalize(mediaId: Long): LongResponse
 
     @Throws(TwitterException::class)
-    fun uploadMedia(mediaType: String, fileName: String, media: InputStream): LongResponse
+    fun uploadMediaChunked(mediaCategory: MediaCategory, mediaType: MediaType, fileName: String, media: InputStream): LongResponse
 
     @Throws(TwitterException::class)
-    fun uploadMedia(file: File): LongResponse =
-        uploadMedia(Files.probeContentType(file.toPath()), file.name, file.inputStream())
+    fun uploadMediaChunked(mediaCategory: MediaCategory, file: File): LongResponse {
+        val contentType = Files.probeContentType(file.toPath())
+        val mediaType = MediaType.fromValue(contentType) ?: throw TwitterException("Unsupported media type: $contentType")
+        return uploadMediaChunked(mediaCategory, mediaType, file.name, file.inputStream())
+    }
+
+    @Throws(TwitterException::class)
+    fun uploadMedia(mediaCategory: MediaCategory, mediaType: MediaType, fileName: String, media: InputStream): LongResponse
+
+    @Throws(TwitterException::class)
+    fun uploadMedia(mediaCategory: MediaCategory, file: File): LongResponse {
+        val contentType = Files.probeContentType(file.toPath())
+        val mediaType = MediaType.fromValue(contentType) ?: throw TwitterException("Unsupported media type: $contentType")
+        return uploadMedia(mediaCategory, mediaType, file.name, file.inputStream())
+    }
 }

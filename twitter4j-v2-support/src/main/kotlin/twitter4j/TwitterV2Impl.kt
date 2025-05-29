@@ -1,8 +1,10 @@
 package twitter4j
 
 import java.io.ByteArrayInputStream
+import java.io.File
 import java.io.IOException
 import java.io.InputStream
+import java.nio.file.Files
 import java.util.*
 
 private const val MB = 1024 * 1024 // 1 MByte
@@ -1393,15 +1395,15 @@ class TwitterV2Impl(private val twitter: Twitter) : TwitterV2 {
     }
 
     @Throws(TwitterException::class)
-    override fun uploadMediaChunkedInit(size: Long, mediaType: String): LongResponse {
+    override fun uploadMediaChunkedInit(mediaCategory: MediaCategory, mediaType: MediaType, size: Long): LongResponse {
         val params = arrayListOf(
-            HttpParameter("command", "INIT"),
-            HttpParameter("media_type", mediaType),
+            HttpParameter("media_category", mediaCategory.value),
+            HttpParameter("media_type", mediaType.value),
             HttpParameter("total_bytes", size.toString()),
         )
 
         return V2ResponseFactory().createLongResponse(
-            post(conf.v2Configuration.baseURL + "media/upload", params.toTypedArray()),
+            post(conf.v2Configuration.baseURL + "media/upload/initialize", params.toTypedArray()),
             conf,
             "id"
         )
@@ -1410,38 +1412,31 @@ class TwitterV2Impl(private val twitter: Twitter) : TwitterV2 {
     @Throws(TwitterException::class)
     override fun uploadMediaChunkedAppend(mediaId: Long, segmentIndex: Long, fileName: String, media: InputStream) {
         val params = arrayListOf(
-            HttpParameter("command", "APPEND"),
-            HttpParameter("media_id", mediaId.toString()),
             HttpParameter("segment_index", segmentIndex),
             HttpParameter("media", fileName, media),
         )
 
-        post(conf.v2Configuration.baseURL + "media/upload", params.toTypedArray())
+        post(conf.v2Configuration.baseURL + "media/upload/$media/append", params.toTypedArray())
     }
 
     @Throws(TwitterException::class)
     override fun uploadMediaChunkedFinalize(mediaId: Long): LongResponse {
-        val params = arrayListOf(
-            HttpParameter("command", "FINALIZE"),
-            HttpParameter("media_id", mediaId.toString())
-        )
-
         return V2ResponseFactory().createLongResponse(
-            post(conf.v2Configuration.baseURL + "media/upload", params.toTypedArray()),
+            post(conf.v2Configuration.baseURL + "media/upload/$mediaId/finalize", emptyArray<HttpParameter>()),
             conf,
             "id"
         )
     }
 
     @Throws(TwitterException::class)
-    override fun uploadMedia(mediaType: String, fileName: String, media: InputStream): LongResponse {
+    override fun uploadMediaChunked(mediaCategory: MediaCategory, mediaType: MediaType, fileName: String, media: InputStream): LongResponse {
         val dataBytes = try {
             media.readBytes().also {
-                if (it.size > MAX_IMAGE_SIZE && mediaType.startsWith("image/")) {
+                if (it.size > MAX_IMAGE_SIZE && mediaType.value.startsWith("image/")) {
                     throw TwitterException("Image file can't exceed ${MAX_IMAGE_SIZE / MB} MB")
                 }
 
-                if (it.size > MAX_VIDEO_SIZE && mediaType.startsWith("video/")) {
+                if (it.size > MAX_VIDEO_SIZE && mediaType.value.startsWith("video/")) {
                     throw TwitterException("Video file can't exceed ${MAX_VIDEO_SIZE / MB} MB")
                 }
             }
@@ -1449,7 +1444,7 @@ class TwitterV2Impl(private val twitter: Twitter) : TwitterV2 {
             throw TwitterException("Failed to download the file.", ioe)
         }
 
-        val response = uploadMediaChunkedInit(dataBytes.size.toLong(), mediaType)
+        val response = uploadMediaChunkedInit(mediaCategory, mediaType,dataBytes.size.toLong())
         val dataInputStream = ByteArrayInputStream(dataBytes)
         var segmentIndex = 0L
 
@@ -1461,6 +1456,22 @@ class TwitterV2Impl(private val twitter: Twitter) : TwitterV2 {
 
         uploadMediaChunkedFinalize(response.mediaId)
         return response
+    }
+
+    @Throws(TwitterException::class)
+    override fun uploadMedia(mediaCategory: MediaCategory, mediaType: MediaType, fileName: String, media: InputStream): LongResponse {
+        val params = arrayListOf(
+            HttpParameter("media_category", mediaCategory.value),
+            HttpParameter("media_type", mediaType.value),
+            HttpParameter("media", fileName, media),
+        )
+
+        return V2ResponseFactory().createLongResponse(
+            post(conf.v2Configuration.baseURL + "media/upload", params.toTypedArray()),
+            conf,
+            "id"
+        )
+
     }
 
     //--------------------------------------------------
