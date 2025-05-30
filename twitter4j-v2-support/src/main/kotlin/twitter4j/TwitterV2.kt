@@ -932,14 +932,4 @@ interface TwitterV2 {
         val mediaType = MediaType.fromValue(contentType) ?: throw TwitterException("Unsupported media type: $contentType")
         return uploadMediaChunked(mediaCategory, mediaType, file.name, file.inputStream())
     }
-
-    @Throws(TwitterException::class)
-    fun uploadMedia(mediaCategory: MediaCategory, mediaType: MediaType, fileName: String, media: InputStream): LongResponse
-
-    @Throws(TwitterException::class)
-    fun uploadMedia(mediaCategory: MediaCategory, file: File): LongResponse {
-        val contentType = Files.probeContentType(file.toPath())
-        val mediaType = MediaType.fromValue(contentType) ?: throw TwitterException("Unsupported media type: $contentType")
-        return uploadMedia(mediaCategory, mediaType, file.name, file.inputStream())
-    }
 }

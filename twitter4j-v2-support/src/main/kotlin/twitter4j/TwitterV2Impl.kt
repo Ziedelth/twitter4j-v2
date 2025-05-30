@@ -1,10 +1,8 @@
 package twitter4j
 
 import java.io.ByteArrayInputStream
-import java.io.File
 import java.io.IOException
 import java.io.InputStream
-import java.nio.file.Files
 import java.util.*
 
 private const val MB = 1024 * 1024 // 1 MByte
@@ -1396,14 +1394,14 @@ class TwitterV2Impl(private val twitter: Twitter) : TwitterV2 {
 
     @Throws(TwitterException::class)
     override fun uploadMediaChunkedInit(mediaCategory: MediaCategory, mediaType: MediaType, size: Long): LongResponse {
-        val params = arrayListOf(
-            HttpParameter("media_category", mediaCategory.value),
-            HttpParameter("media_type", mediaType.value),
-            HttpParameter("total_bytes", size.toString()),
-        )
+        val params = JSONObject().apply {
+            put("media_category", mediaCategory.value)
+            put("media_type", mediaType.value)
+            put("total_bytes", size)
+        }
 
         return V2ResponseFactory().createLongResponse(
-            post(conf.v2Configuration.baseURL + "media/upload/initialize", params.toTypedArray()),
+            post(conf.v2Configuration.baseURL + "media/upload/initialize", params),
             conf,
             "id"
         )
@@ -1416,7 +1414,7 @@ class TwitterV2Impl(private val twitter: Twitter) : TwitterV2 {
             HttpParameter("media", fileName, media),
         )
 
-        post(conf.v2Configuration.baseURL + "media/upload/$media/append", params.toTypedArray())
+        post(conf.v2Configuration.baseURL + "media/upload/$mediaId/append", params.toTypedArray())
     }
 
     @Throws(TwitterException::class)
@@ -1458,22 +1456,6 @@ class TwitterV2Impl(private val twitter: Twitter) : TwitterV2 {
         return response
     }
 
-    @Throws(TwitterException::class)
-    override fun uploadMedia(mediaCategory: MediaCategory, mediaType: MediaType, fileName: String, media: InputStream): LongResponse {
-        val params = arrayListOf(
-            HttpParameter("media_category", mediaCategory.value),
-            HttpParameter("media_type", mediaType.value),
-            HttpParameter("media", fileName, media),
-        )
-
-        return V2ResponseFactory().createLongResponse(
-            post(conf.v2Configuration.baseURL + "media/upload", params.toTypedArray()),
-            conf,
-            "id"
-        )
-
-    }
-
     //--------------------------------------------------
     // get/post/delete
     //--------------------------------------------------
@@ -1491,10 +1473,8 @@ class TwitterV2Impl(private val twitter: Twitter) : TwitterV2 {
     }
 
     private fun post(url: String, params: Array<HttpParameter>): HttpResponse {
-
-        if (twitter !is TwitterImpl) throw IllegalStateException("invalid twitter4j impl")
+        check (twitter is TwitterImpl) { "invalid twitter4j impl" }
         twitter.ensureAuthorizationEnabled()
-
         return twitter.http.post(url, params, twitter.auth, twitter)
     }
 
